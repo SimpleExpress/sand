@@ -15,9 +15,9 @@ class FixedColumnTable(object):
         assert isinstance(header, (tuple, list)), \
             'Invalid headers - Must be list'
         assert len(header) > 0, 'Invalid headers - Must specify columns'
-        self.__header = header
+        self.__header = [str(v) if v else '' for v in header]
         self.__width = len(self.__header)
-        self.__space = [len(str(hdr)) for hdr in self.__header]
+        self.__space = [len(hdr) for hdr in self.__header]
 
     def reset(self):
         self.__width = 0
@@ -39,7 +39,8 @@ class FixedColumnTable(object):
         for i in range(min(len(data), self.__width)):
             cell = data[i]
             new_row.append(cell)
-            self.__space[i] = max(len(cell), self.__space[i])
+            self.__space[i] = max(len(str(cell)) if cell else 0,
+                                  self.__space[i])
         if len(new_row) < self.__width:
             length = len(new_row)
             for i in range(self.__width - length):
@@ -56,7 +57,6 @@ class FixedColumnTable(object):
 
     def populate(self):
         if self.__width == 0:
-            print('No data available')
             return
 
         print('\n\n\n')
@@ -66,7 +66,8 @@ class FixedColumnTable(object):
             print(fmt % tuple(self.__header))
             print('-' * (sum(self.__space) + 3 * self.__width))
         for row in self.__data:
-            print(fmt % tuple(row))
+            cleaned = [str(v) if v else '' for v in row]
+            print(fmt % tuple(cleaned))
 
     def export2csv(self, path, append=False):
         """
@@ -78,7 +79,7 @@ class FixedColumnTable(object):
         """
         def clean(raw_list):
             for i in range(len(raw_list)):
-                raw_list[i] = str(raw_list[i])
+                raw_list[i] = str(raw_list[i]) if raw_list[i] else ''
             return raw_list
 
         mode = 'w' if not append else 'a'
@@ -139,7 +140,9 @@ class ExtensibleColumnTable(object):
             record = [None for _ in range(len(self.__header))]
 
         for k, v in zipped_record:
-            if k in self.__header:
+            if not k:
+                self.add(('NO_COLUMN_NAME_ASSIGNED', v))
+            if str(k) in self.__header:
                 index = self.__header.index(k)
                 record[index] = v
             else:
@@ -154,6 +157,9 @@ class ExtensibleColumnTable(object):
         self.__wrapped = True
 
     def populate(self):
+        if not self.__header or not self.__data:
+            return
+
         if not self.__wrapped:
             self.__wrap_into_fixed_column()
         self.__table.populate()
